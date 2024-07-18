@@ -5,7 +5,7 @@ on:
 
 env:
   LOG_FILE: log.txt
-  SUBMITTERS: "Katherine Berger" 
+  SUBMITTERS: "Katherine Berger"
 
 jobs:
   build:
@@ -19,10 +19,11 @@ jobs:
         run: |
           docker-compose build
           # Check if docker-compose build was successful
-          if [ $? -eq 0 ]; then
+          if docker-compose ps | grep -q "Up"; then
             echo "image successfully built" > build_status.txt
           else
             echo "image not able to be built" > build_status.txt
+            exit 1  # Exit with failure if build was not successful
           fi
 
   test:
@@ -39,7 +40,7 @@ jobs:
       - name: Build and run services
         run: |
           docker-compose up -d
-      
+
       - name: Wait for containers to be ready
         run: sleep 10
 
@@ -77,73 +78,83 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Start services with Docker Compose
-      run: docker compose up -d
-    - name: Wait for services to be ready
-      run: sleep 10
-    - name: Post initial books
-      run: |
-        book_data=$(cat << EOF
-        {
-          "book1": {"title":"Adventures of Huckleberry Finn", "ISBN":"9780520343641", "genre":"Fiction"},
-          "book2": {"title":"The Best of Isaac Asimov", "ISBN":"9780385050784", "genre":"Science Fiction"},
-          "book3": {"title":"Fear No Evil", "ISBN":"9780394558783", "genre":"Biography"},
-          "book6": {"title": "The Adventures of Tom Sawyer", "ISBN": "9780195810400", "genre": "Fiction"},
-          "book7": {"title": "I, Robot", "ISBN": "9780553294385", "genre": "Science Fiction"},
-          "book8": {"title": "Second Foundation", "ISBN": "9780553293364", "genre": "Science Fiction"}
-        }
-        EOF
-        )
-        for book in 1 2 3 6 7 8; do
-          echo $book_data | jq -c ".book${book}" | \
-          curl -X POST -H "Content-Type: application/json" -d @- http://localhost:5001/books
-        done
-    - name: Process queries
-      run: |
-        > response.txt
-        while IFS= read -r query; do
-          echo "query: $query" >> response.txt
-          response=$(curl -s -w "\n%{http_code}" "http://localhost:5001/books$query")
-          status_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          if [ "$status_code" -eq 200 ]; then
-            echo "response: $body" >> response.txt
-          else
-            echo "response: error $status_code" >> response.txt
-          fi
-          echo "" >> response.txt
-        done < query.txt
-    - name: Upload response file
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: query-response
-        path: response.txt
-    - name: Stop Docker Compose
-      if: always()
-      run: docker compose down
+      - uses: actions/checkout@v4
+      - name: Start services with Docker Compose
+        run: docker compose up -d
+      - name: Wait for services to be ready
+        run: sleep 10
+      - name: Post initial books
+        run: |
+          book_data=$(cat << EOF
+          {
+            "book1": {"title":"Adventures of Huckleberry Finn", "ISBN":"9780520343641", "genre":"Fiction"},
+            "book2": {"title":"The Best of Isaac Asimov", "ISBN":"9780385050784", "genre":"Science Fiction"},
+            "book3": {"title":"Fear No Evil", "ISBN":"9780394558783", "genre":"Biography"},
+            "book6": {"title": "The Adventures of Tom Sawyer", "ISBN": "9780195810400", "genre": "Fiction"},
+            "book7": {"title": "I, Robot", "ISBN": "9780553294385", "genre": "Science Fiction"},
+            "book8": {"title": "Second Foundation", "ISBN": "9780553293364", "genre": "Science Fiction"}
+          }
+          EOF
+          )
+          for book in 1 2 3 6 7 8; do
+            echo $book_data | jq -c ".book${book}" | \
+            curl -X POST -H "Content-Type: application/json" -d @- http://localhost:5001/books
+          done
+      - name: Process queries
+        run: |
+          > response.txt
+          while IFS= read -r query; do
+            echo "query: $query" >> response.txt
+            response=$(curl -s -w "\n%{http_code}" "http://localhost:5001/books$query")
+            status_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+            if [ "$status_code" -eq 200 ]; then
+              echo "response: $body" >> response.txt
+            else
+              echo "response: error $status_code" >> response.txt
+            fi
+            echo "" >> response.txt
+          done < query.txt
+      - name: Upload response file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: query-response
+          path: response.txt
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down
 
   generate-log:
     needs: [build, test, query]
     if: always()
     runs-on: ubuntu-latest
     steps:
-    - name: Create log file
-      run: |
-        echo "$(date -Iminutes)" > ${{ env.LOG_FILE }}
-        echo "" >> ${{ env.LOG_FILE }}
-        echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
-        echo "" >> ${{ env.LOG_FILE }}
-        cat build_status.txt >> ${{ env.LOG_FILE }}
-        echo "" >> ${{ env.LOG_FILE }}
-        cat container_status.txt >> ${{ env.LOG_FILE }}
-        echo "" >> ${{ env.LOG_FILE }}
-        echo "${{ needs.test.outputs.TEST_STATUS || 'Test status unknown' }}" >> ${{ env.LOG_FILE }}
-    - name: Display log file contents
-      run: cat ${{ env.LOG_FILE }}
-    - name: Upload log file
-      uses: actions/upload-artifact@v4
-      with:
-        name: workflow-log
-        path: ${{ env.LOG_FILE }}
+      - name: Create log file
+        run: |
+          echo "$(date -Iminutes)" > ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}
+          echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}
+          if [ -f "build_status.txt" ]; then
+            cat build_status.txt >> ${{ env.LOG_FILE }}
+          else
+            echo "Build status unknown" >> ${{ env.LOG_FILE }}
+          fi
+          echo "" >> ${{ env.LOG_FILE }}
+          if [ -f "container_status.txt" ]; then
+            cat container_status.txt >> ${{ env.LOG_FILE }}
+          else
+            echo "Container status unknown" >> ${{ env.LOG_FILE }}
+          fi
+          echo "" >> ${{ env.LOG_FILE }}
+          echo "${{ needs.test.outputs.TEST_STATUS || 'Test status unknown' }}" >> ${{ env.LOG_FILE }}
+
+      - name: Display log file contents
+        run: cat ${{ env.LOG_FILE }}
+
+      - name: Upload log file
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-log
+          path: ${{ env.LOG_FILE }}
