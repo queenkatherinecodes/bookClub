@@ -1,4 +1,4 @@
-name: Assignment 3 Workflow
+name: assignment3
 
 on:
   push:
@@ -10,6 +10,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      BUILD_STATUS: ${{ steps.build_status.outputs.status }}
     steps:
     - uses: actions/checkout@v4
     - name: Record start time
@@ -17,43 +19,45 @@ jobs:
     - name: Build with Docker Compose
       run: docker compose build
     - name: Record build status
-      if: success()
-      run: echo "BUILD_STATUS=image successfully built" >> $GITHUB_ENV
-    - name: Record build failure
-      if: failure()
-      run: echo "BUILD_STATUS=image not able to be built" >> $GITHUB_ENV
+      id: build_status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "status=image successfully built" >> $GITHUB_OUTPUT
+        else
+          echo "status=image not able to be built" >> $GITHUB_OUTPUT
+        fi
 
   test:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      CONTAINER_STATUS: ${{ steps.container_status.outputs.status }}
+      TEST_STATUS: ${{ steps.test_status.outputs.status }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest requests
     - name: Start services with Docker Compose
       run: docker compose up -d
     - name: Check container status
+      id: container_status
       run: |
         if docker ps | grep -q books-service; then
-          echo "CONTAINER_STATUS=Container up and running" >> $GITHUB_ENV
+          echo "status=Container up and running" >> $GITHUB_OUTPUT
         else
-          echo "CONTAINER_STATUS=Container failed to run" >> $GITHUB_ENV
+          echo "status=Container failed to run" >> $GITHUB_OUTPUT
         fi
     - name: Run tests inside Docker container
       run: |
         docker compose exec -T books pytest /app/tests/assn3_tests.py > assn3_test_results.txt || true
         cat assn3_test_results.txt
     - name: Record test status
+      id: test_status
       if: always()
       run: |
         if grep -q "FAILED" assn3_test_results.txt; then
-          echo "TEST_STATUS=tests failed" >> $GITHUB_ENV
+          echo "status=tests failed" >> $GITHUB_OUTPUT
         else
-          echo "TEST_STATUS=tests succeeded" >> $GITHUB_ENV
+          echo "status=tests succeeded" >> $GITHUB_OUTPUT
         fi
     - name: Upload pytest results
       if: always()
@@ -107,11 +111,13 @@ jobs:
           echo "" >> response.txt
         done < query.txt
     - name: Upload response file
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: query-response
         path: response.txt
     - name: Stop Docker Compose
+      if: always()
       run: docker compose down
 
   generate-log:
@@ -121,11 +127,17 @@ jobs:
     steps:
     - name: Create log file
       run: |
-        echo "${{ env.WORKFLOW_START }}" > ${{ env.LOG_FILE }}
+        echo "$(date -Iminutes)" > ${{ env.LOG_FILE }}
+        echo "" >> ${{ env.LOG_FILE }}
         echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
-        echo "${{ env.BUILD_STATUS }}" >> ${{ env.LOG_FILE }}
-        echo "${{ env.CONTAINER_STATUS }}" >> ${{ env.LOG_FILE }}
-        echo "${{ env.TEST_STATUS }}" >> ${{ env.LOG_FILE }}
+        echo "" >> ${{ env.LOG_FILE }}
+        echo "${{ needs.build.outputs.BUILD_STATUS || 'Build status unknown' }}" >> ${{ env.LOG_FILE }}
+        echo "" >> ${{ env.LOG_FILE }}
+        echo "${{ needs.test.outputs.CONTAINER_STATUS || 'Container status unknown' }}" >> ${{ env.LOG_FILE }}
+        echo "" >> ${{ env.LOG_FILE }}
+        echo "${{ needs.test.outputs.TEST_STATUS || 'Test status unknown' }}" >> ${{ env.LOG_FILE }}
+    - name: Display log file contents
+      run: cat ${{ env.LOG_FILE }}
     - name: Upload log file
       uses: actions/upload-artifact@v4
       with:
