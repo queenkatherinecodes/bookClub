@@ -35,39 +35,46 @@ jobs:
       CONTAINER_STATUS: ${{ steps.container_status.outputs.status }}
       TEST_STATUS: ${{ steps.test_status.outputs.status }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Start services with Docker Compose
-      run: docker compose up -d
-    - name: Check container status
-      id: container_status
-      run: |
-        if docker ps | grep -q books-service; then
-          echo "status=Container up and running" >> $GITHUB_OUTPUT
-        else
-          echo "status=Container failed to run" >> $GITHUB_OUTPUT
-        fi
-    - name: Run tests inside Docker container
-      run: |
-        docker compose exec -T books pytest /app/tests/assn3_tests.py > assn3_test_results.txt || true
-        cat assn3_test_results.txt
-    - name: Record test status
-      id: test_status
-      if: always()
-      run: |
-        if grep -q "FAILED" assn3_test_results.txt; then
-          echo "status=tests failed" >> $GITHUB_OUTPUT
-        else
-          echo "status=tests succeeded" >> $GITHUB_OUTPUT
-        fi
-    - name: Upload pytest results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pytest-results
-        path: assn3_test_results.txt
-    - name: Stop Docker Compose
-      if: always()
-      run: docker compose down
+      - uses: actions/checkout@v4
+      - name: Start services with Docker Compose
+        run: docker compose up -d
+      - name: Check container status
+        id: container_status
+        run: |
+          if docker ps | grep -q books-service; then
+            echo "status=Container up and running" >> $GITHUB_OUTPUT
+          else
+            echo "status=Container failed to run" >> $GITHUB_OUTPUT
+            docker compose logs
+          fi
+      - name: Check directory structure
+        run: docker compose exec -T books ls -R /app
+      - name: Run tests inside Docker container
+        run: |
+          docker compose exec -T books pytest /app/tests/assn3_tests.py -v > assn3_test_results.txt || true
+          cat assn3_test_results.txt
+      - name: Record test status
+        id: test_status
+        if: always()
+        run: |
+          if [ "${{ steps.container_status.outputs.status }}" = "Container failed to run" ]; then
+            echo "status=tests failed (container didn't start)" >> $GITHUB_OUTPUT
+          elif grep -q "FAILED" assn3_test_results.txt; then
+            echo "status=tests failed" >> $GITHUB_OUTPUT
+          elif grep -q "no tests ran" assn3_test_results.txt; then
+            echo "status=no tests ran" >> $GITHUB_OUTPUT
+          else
+            echo "status=tests succeeded" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: assn3_test_results.txt
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down
 
   query:
     needs: test
