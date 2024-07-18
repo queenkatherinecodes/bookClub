@@ -6,12 +6,16 @@ on:
 env:
   LOG_FILE: log.txt
   SUBMITTERS: "Katherine Berger"
+  CURRENT_TIME: ""
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set current time
+        run: echo "CURRENT_TIME=$(date -Iminutes)" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -24,7 +28,7 @@ jobs:
 
       - name: Wait for containers to be ready
         run: sleep 10
-        
+
   test:
     needs: build
     runs-on: ubuntu-latest
@@ -131,29 +135,13 @@ jobs:
     steps:
       - name: Create log file
         run: |
-          echo "$(date -Iminutes)" > ${{ env.LOG_FILE }}
+          echo "${{ env.CURRENT_TIME }}" > ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}
           echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}
-          if [ -f "build_status.txt" ]; then
-            cat build_status.txt >> ${{ env.LOG_FILE }}
-          else
-            echo "Build status unknown" >> ${{ env.LOG_FILE }}
-          fi
-          echo "" >> ${{ env.LOG_FILE }}
-          if [ -f "container_status.txt" ]; then
-            cat container_status.txt >> ${{ env.LOG_FILE }}
-          else
-            echo "Container status unknown" >> ${{ env.LOG_FILE }}
-          fi
-          echo "" >> ${{ env.LOG_FILE }}
-          echo "${{ needs.test.outputs.TEST_STATUS || 'Test status unknown' }}" >> ${{ env.LOG_FILE }}
-
-      - name: Display log file contents
-        run: cat ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}     
 
       - name: Upload log file
         uses: actions/upload-artifact@v4
         with:
-          name: workflow-log
+          name: log
           path: ${{ env.LOG_FILE }}
