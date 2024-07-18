@@ -67,59 +67,59 @@ jobs:
       run: docker-compose -f docker-compose.yml down
 
   query:
-  needs: test
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v2
-    - name: Download Docker image
-      uses: actions/download-artifact@v4
-      with:
-        name: books-service-image
-    - name: Load Docker image
-      run: docker load < books-service.tar
-    - name: Run Docker Compose
-      run: docker-compose -f docker-compose.yml up -d
-    - name: Wait for services to be ready
-      run: sleep 10
-    - name: Post initial books
-      run: |
-        book_data=$(cat << EOF
-        {
-          "book1": {"title":"Adventures of Huckleberry Finn", "ISBN":"9780520343641", "genre":"Fiction"},
-          "book2": {"title":"The Best of Isaac Asimov", "ISBN":"9780385050784", "genre":"Science Fiction"},
-          "book3": {"title":"Fear No Evil", "ISBN":"9780394558783", "genre":"Biography"},
-          "book6": {"title": "The Adventures of Tom Sawyer", "ISBN": "9780195810400", "genre": "Fiction"},
-          "book7": {"title": "I, Robot", "ISBN": "9780553294385", "genre": "Science Fiction"},
-          "book8": {"title": "Second Foundation", "ISBN": "9780553293364", "genre": "Science Fiction"}
-        }
-        EOF
-        )
-        for book in 1 2 3 6 7 8; do
-          echo $book_data | jq -c ".book${book}" | \
-          curl -X POST -H "Content-Type: application/json" -d @- http://localhost:5001/books
-        done
-    - name: Process queries
-      run: |
-        > response.txt
-        while IFS= read -r query; do
-          echo "query: $query" >> response.txt
-          response=$(curl -s -w "\n%{http_code}" "http://localhost:5001/books$query")
-          status_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          if [ "$status_code" -eq 200 ]; then
-            echo "response: $body" >> response.txt
-          else
-            echo "response: error $status_code" >> response.txt
-          fi
-          echo "" >> response.txt
-        done < query.txt
-    - name: Upload response file
-      uses: actions/upload-artifact@v4
-      with:
-        name: query-response
-        path: response.txt
-    - name: Stop Docker Compose
-      run: docker-compose -f docker-compose.yml down
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: books-service-image
+      - name: Load Docker image
+        run: docker load < books-service.tar
+      - name: Run Docker Compose
+        run: docker-compose -f docker-compose.yml up -d
+      - name: Wait for services to be ready
+        run: sleep 10
+      - name: Post initial books
+        run: |
+          book_data=$(cat << EOF
+          {
+            "book1": {"title":"Adventures of Huckleberry Finn", "ISBN":"9780520343641", "genre":"Fiction"},
+            "book2": {"title":"The Best of Isaac Asimov", "ISBN":"9780385050784", "genre":"Science Fiction"},
+            "book3": {"title":"Fear No Evil", "ISBN":"9780394558783", "genre":"Biography"},
+            "book6": {"title": "The Adventures of Tom Sawyer", "ISBN": "9780195810400", "genre": "Fiction"},
+            "book7": {"title": "I, Robot", "ISBN": "9780553294385", "genre": "Science Fiction"},
+            "book8": {"title": "Second Foundation", "ISBN": "9780553293364", "genre": "Science Fiction"}
+          }
+          EOF
+          )
+          for book in 1 2 3 6 7 8; do
+            echo $book_data | jq -c ".book${book}" | \
+            curl -X POST -H "Content-Type: application/json" -d @- http://localhost:5001/books
+          done
+      - name: Process queries
+        run: |
+          > response.txt
+          while IFS= read -r query; do
+            echo "query: $query" >> response.txt
+            response=$(curl -s -w "\n%{http_code}" "http://localhost:5001/books$query")
+            status_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+            if [ "$status_code" -eq 200 ]; then
+              echo "response: $body" >> response.txt
+            else
+              echo "response: error $status_code" >> response.txt
+            fi
+            echo "" >> response.txt
+          done < query.txt
+      - name: Upload response file
+        uses: actions/upload-artifact@v4
+        with:
+          name: query-response
+          path: response.txt
+      - name: Stop Docker Compose
+        run: docker-compose -f docker-compose.yml down
 
   generate-log:
     needs: [build, test, query]
