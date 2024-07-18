@@ -47,11 +47,24 @@ jobs:
             echo "status=Container failed to run" >> $GITHUB_OUTPUT
             docker compose logs
           fi
+      - name: Display docker-compose.yml
+        run: cat docker-compose.yml
       - name: Check directory structure
-        run: docker compose exec -T books ls -R /app
+        run: |
+          echo "Root directory structure:"
+          docker compose exec -T books ls -R /
+          echo "App directory structure:"
+          docker compose exec -T books ls -R /app
+      - name: Find test file
+        run: docker compose exec -T books find / -name assn3_tests.py
       - name: Run tests inside Docker container
         run: |
-          docker compose exec -T books pytest /app/tests/assn3_tests.py -v > assn3_test_results.txt || true
+          TEST_FILE=$(docker compose exec -T books find / -name assn3_tests.py | head -n 1)
+          if [ -n "$TEST_FILE" ]; then
+            docker compose exec -T books pytest $TEST_FILE -v > assn3_test_results.txt || true
+          else
+            echo "Test file not found" > assn3_test_results.txt
+          fi
           cat assn3_test_results.txt
       - name: Record test status
         id: test_status
@@ -63,6 +76,8 @@ jobs:
             echo "status=tests failed" >> $GITHUB_OUTPUT
           elif grep -q "no tests ran" assn3_test_results.txt; then
             echo "status=no tests ran" >> $GITHUB_OUTPUT
+          elif grep -q "Test file not found" assn3_test_results.txt; then
+            echo "status=test file not found" >> $GITHUB_OUTPUT
           else
             echo "status=tests succeeded" >> $GITHUB_OUTPUT
           fi
