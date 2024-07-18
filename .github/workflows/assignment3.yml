@@ -147,7 +147,7 @@ jobs:
     steps:
       - name: Create log file
         run: |
-          cat date.txt >> ${{ env.LOG_FILE }}
+          cat ${{ github.workspace }}/date.txt >> ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}
           echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}     
