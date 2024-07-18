@@ -48,9 +48,14 @@ jobs:
         run: |
           docker-compose up -d
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
       - name: Run tests
         run: |
-          pytest -v app/tests/test_word.py > assn3_test_results.txt
+          pytest -v app/tests/assn3_tests.py > assn3_test_results.txt
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
