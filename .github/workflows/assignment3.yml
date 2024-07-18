@@ -38,7 +38,7 @@ jobs:
           echo "CONTAINER_STATUS=Container failed to run" >> $GITHUB_ENV
         fi
     - name: Run tests
-      run: docker compose exec -T books pytest app/assn3_tests.py > pytest_results.txt
+      run: docker compose exec -T books pytest app/tests/assn3_tests.py > pytest_results.txt
     - name: Record test status
       if: success()
       run: echo "TEST_STATUS=tests succeeded" >> $GITHUB_ENV
