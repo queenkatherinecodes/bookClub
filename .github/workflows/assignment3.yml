@@ -47,16 +47,6 @@ jobs:
             echo "status=Container failed to run" >> $GITHUB_OUTPUT
             docker compose logs
           fi
-      - name: Display docker-compose.yml
-        run: cat docker-compose.yml
-      - name: Check directory structure
-        run: |
-          echo "Root directory structure:"
-          docker compose exec -T books ls -R /
-          echo "App directory structure:"
-          docker compose exec -T books ls -R /app
-      - name: Find test file
-        run: docker compose exec -T books find / -name assn3_tests.py
       - name: Run tests inside Docker container
         run: |
           TEST_FILE=$(docker compose exec -T books find / -name assn3_tests.py | head -n 1)
