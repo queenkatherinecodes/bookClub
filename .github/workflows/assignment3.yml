@@ -14,6 +14,12 @@ jobs:
     steps:
       - name: Set current time
         run: echo "$(date -Iminutes)" > date.txt
+      - name: Upload current time
+        uses: actions/upload-artifact@v4
+        with:
+          name: date
+          path: date.txt
+
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -102,26 +108,32 @@ jobs:
             echo $book_data | jq -c ".book${book}" | \
             curl -X POST -H "Content-Type: application/json" -d @- http://localhost:5001/books
           done
-      - name: Process queries
+      - name: Execute Queries and Generate response.txt
         run: |
-          > response.txt
-          while IFS= read -r query; do
-            echo "query: $query" >> response.txt
-            response=$(curl -s -w "\n%{http_code}" "http://localhost:5001/books$query")
-            status_code=$(echo "$response" | tail -n1)
-            body=$(echo "$response" | sed '$d')
-            if [ "$status_code" -eq 200 ]; then
-              echo "response: $body" >> response.txt
-            else
-              echo "response: error $status_code" >> response.txt
-            fi
-            echo "" >> response.txt
+          echo "Starting query execution..."
+          touch response.txt  # Create response.txt file
+
+          # Read each line from query.txt and process
+          while IFS= read -r query || [[ -n "${query}" ]]; do
+              url="http://localhost:5001/books${query}"
+              echo "Executing GET request for query: ${query}"
+
+              # Send GET request and capture response status code
+              response=$(curl -s -o response.json -w "%{http_code}" "${url}")
+
+              # Check if response status code is 200
+              if [ "${response}" -eq 200 ]; then
+                  echo "query: ${query} response: $(cat response.json)" >> response.txt
+              else
+                  echo "query: ${query} response: error ${response}" >> response.txt
+              fi
           done < query.txt
+
       - name: Upload response file
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: query-response
+          name: response
           path: response.txt
       - name: Stop Docker Compose
         if: always()
