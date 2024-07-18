@@ -27,59 +27,40 @@ jobs:
         else
           echo "status=image not able to be built" >> $GITHUB_OUTPUT
         fi
+    - name: Upload artifact  # This step uploads the Docker image as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: books  # Name of the artifact
+        path: /tmp/image.tar  # Path to the Docker image tar file
 
   test:
     needs: build
     runs-on: ubuntu-latest
-    outputs:
-      CONTAINER_STATUS: ${{ steps.container_status.outputs.status }}
-      TEST_STATUS: ${{ steps.test_status.outputs.status }}
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Start services with Docker Compose
-        run: docker compose up -d
-      - name: Check container status
-        id: container_status
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build and run services
         run: |
-          if docker ps | grep -q books-service; then
-            echo "status=Container up and running" >> $GITHUB_OUTPUT
-          else
-            echo "status=Container failed to run" >> $GITHUB_OUTPUT
-            docker compose logs
-          fi
-      - name: Run tests inside Docker container
+          docker-compose up -d
+
+      - name: Run tests
         run: |
-          TEST_FILE=$(docker compose exec -T books find / -name assn3_tests.py | head -n 1)
-          if [ -n "$TEST_FILE" ]; then
-            docker compose exec -T books pytest $TEST_FILE -v > assn3_test_results.txt || true
-          else
-            echo "Test file not found" > assn3_test_results.txt
-          fi
-          cat assn3_test_results.txt
-      - name: Record test status
-        id: test_status
-        if: always()
-        run: |
-          if [ "${{ steps.container_status.outputs.status }}" = "Container failed to run" ]; then
-            echo "status=tests failed (container didn't start)" >> $GITHUB_OUTPUT
-          elif grep -q "FAILED" assn3_test_results.txt; then
-            echo "status=tests failed" >> $GITHUB_OUTPUT
-          elif grep -q "no tests ran" assn3_test_results.txt; then
-            echo "status=no tests ran" >> $GITHUB_OUTPUT
-          elif grep -q "Test file not found" assn3_test_results.txt; then
-            echo "status=test file not found" >> $GITHUB_OUTPUT
-          else
-            echo "status=tests succeeded" >> $GITHUB_OUTPUT
-          fi
-      - name: Upload pytest results
-        if: always()
+          pytest -v app/tests/test_word.py > assn3_test_results.txt
+
+      - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results
+          name: test-results
           path: assn3_test_results.txt
-      - name: Stop Docker Compose
-        if: always()
-        run: docker compose down
+
+      - name: Shutdown services
+        run: |
+          docker-compose down
 
   query:
     needs: test
