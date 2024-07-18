@@ -28,6 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.2'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests
     - name: Start services with Docker Compose
       run: docker compose up -d
     - name: Check container status
@@ -38,7 +46,7 @@ jobs:
           echo "CONTAINER_STATUS=Container failed to run" >> $GITHUB_ENV
         fi
     - name: Run tests
-      run: pytest app/tests/assn3_tests.py > pytest_results.txt
+      run: pytest app/tests/assn3_tests.py > assn3_test_results.txt
     - name: Record test status
       if: success()
       run: echo "TEST_STATUS=tests succeeded" >> $GITHUB_ENV
@@ -49,7 +57,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: pytest-results
-        path: pytest_results.txt
+        path: assn3_test_results.txt
     - name: Stop Docker Compose
       run: docker compose down
 
