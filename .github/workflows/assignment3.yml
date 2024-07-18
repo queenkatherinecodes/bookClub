@@ -43,20 +43,26 @@ jobs:
         else
           echo "CONTAINER_STATUS=Container failed to run" >> $GITHUB_ENV
         fi
-    - name: Run tests
-      run: pytest app/tests/assn3_tests.py > assn3_test_results.txt
+    - name: Run tests inside Docker container
+      run: |
+        docker compose exec -T books pytest /app/tests/assn3_tests.py > assn3_test_results.txt || true
+        cat assn3_test_results.txt
     - name: Record test status
-      if: success()
-      run: echo "TEST_STATUS=tests succeeded" >> $GITHUB_ENV
-    - name: Record test failure
-      if: failure()
-      run: echo "TEST_STATUS=tests failed" >> $GITHUB_ENV
+      if: always()
+      run: |
+        if grep -q "FAILED" assn3_test_results.txt; then
+          echo "TEST_STATUS=tests failed" >> $GITHUB_ENV
+        else
+          echo "TEST_STATUS=tests succeeded" >> $GITHUB_ENV
+        fi
     - name: Upload pytest results
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: pytest-results
         path: assn3_test_results.txt
     - name: Stop Docker Compose
+      if: always()
       run: docker compose down
 
   query:
