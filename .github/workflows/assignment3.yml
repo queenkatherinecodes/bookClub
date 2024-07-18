@@ -14,12 +14,13 @@ jobs:
     steps:
       - name: Set current time
         run: echo "$(date -Iminutes)" > date.txt
+        working-directory: ${{ github.workspace }} 
+
       - name: Upload current time
         uses: actions/upload-artifact@v4
         with:
           name: date
           path: date.txt
-
 
       - name: Checkout repository
         uses: actions/checkout@v4
