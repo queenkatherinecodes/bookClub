@@ -1,2 +1,2 @@
-?publishedDate=2016-06-13
+?publishedDate=2016-06-13\n
 ?ISBN=9780520343641
