@@ -15,11 +15,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build services with Docker Compose
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build Docker images
         run: |
           docker-compose build
           # Check if docker-compose build was successful
-          if docker-compose ps | grep -q "Up"; then
+          docker-compose up -d
+          sleep 10
+          docker-compose down
+          docker-compose ps | grep -q "Up"
+          if [ $? -eq 0 ]; then
             echo "image successfully built" > build_status.txt
           else
             echo "image not able to be built" > build_status.txt
