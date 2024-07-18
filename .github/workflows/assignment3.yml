@@ -6,7 +6,6 @@ on:
 env:
   LOG_FILE: log.txt
   SUBMITTERS: "Katherine Berger"
-  CURRENT_TIME: ""
 
 jobs:
   build:
@@ -14,7 +13,7 @@ jobs:
 
     steps:
       - name: Set current time
-        run: echo "CURRENT_TIME=$(date -Iminutes)" >> $GITHUB_ENV
+        run: echo "$(date -Iminutes)" > date.txt
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -135,7 +134,7 @@ jobs:
     steps:
       - name: Create log file
         run: |
-          echo "${{ env.CURRENT_TIME }}" > ${{ env.LOG_FILE }}
+          cat date.txt >> ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}
           echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}     
