@@ -140,9 +140,11 @@ jobs:
 
               # Check if response status code is 200
               if [ "${response}" -eq 200 ]; then
-                  echo "query: ${query}\nresponse: $(cat response.json)" >> response.txt
+                  echo "query: ${query}" >> response.txt
+                  echo "response: $(cat response.json)" >> response.txt
               else
-                  echo "query: ${query}\nresponse: error ${response}" >> response.txt
+                  echo "query: ${query}" >> response.txt
+                  echo "response: error ${response}" >> response.txt
               fi
           done < query.txt
 
