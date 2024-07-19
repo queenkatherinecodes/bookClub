@@ -5,15 +5,19 @@ on:
 
 env:
   LOG_FILE: log.txt
-  SUBMITTERS: "Katherine Berger"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
+      date: ${{ steps.date.outputs.status }}
       build_status: ${{ steps.build_status.outputs.status }}
     steps:
 
+      - name: Record date
+        id: date
+        run: |
+          echo "status=$(date -Iminutes)" >> $GITHUB_OUTPUT
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -159,8 +163,8 @@ jobs:
     steps:
       - name: Create log file
         run: |
-          echo "$(date -Iminutes)" >> ${{ env.LOG_FILE }}
-          echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}  
+          echo "${{ needs.build.outputs.date }}" >> ${{ env.LOG_FILE }}
+          echo "Katherine Berger" >> ${{ env.LOG_FILE }}  
           echo "${{ needs.build.outputs.build_status }}" >> ${{ env.LOG_FILE }}
           echo "${{ needs.test.outputs.container_status }}" >> ${{ env.LOG_FILE }}
           echo "${{ needs.test.outputs.test_status }}" >> ${{ env.LOG_FILE }}
