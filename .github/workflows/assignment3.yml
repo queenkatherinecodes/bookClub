@@ -10,7 +10,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    outputs:
+      build_status: ${{ steps.build_status.outputs.status }}
     steps:
 
       - name: Checkout repository
@@ -26,9 +27,22 @@ jobs:
       - name: Wait for containers to be ready
         run: sleep 10
 
+      - name: Check build status
+        id: build_status
+        run: |
+          if docker ps | grep -q "Up"; then
+            echo "status=image successfully built" >> $GITHUB_OUTPUT
+          else
+            echo "status=image not able to be built" >> $GITHUB_OUTPUT
+          fi
+      
+
   test:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      container_status: ${{steps.container_status.outputs.status }}
+      test_status: ${{ steps.test_status.outputs.status }}
 
     steps:
       - name: Checkout code
@@ -45,14 +59,12 @@ jobs:
         run: sleep 10
 
       - name: Check container status
-        id: check_container
+        id: container_status
         run: |
-          docker ps --filter "name=books" --format "{{.Status}}" | grep -q "Up"
-          CONTAINER_STATUS=$?
-          if [ $CONTAINER_STATUS -eq 0 ]; then
-            echo "Container up and running" > container_status.txt
+          if docker ps | grep -q "Up"; then
+            echo "status=Container up and running" >> $GITHUB_OUTPUT
           else
-            echo "Container failed to run" > container_status.txt
+            echo "status=Container failed to run" >> $GITHUB_OUTPUT
           fi
 
       - name: Install dependencies
@@ -63,6 +75,15 @@ jobs:
       - name: Run tests
         run: |
           pytest -v app/tests/assn3_tests.py > assn3_test_results.txt
+
+      - name: Check test status
+        id: test_status
+        run: |
+          if grep -q "FAILED" assn3_test_results.txt; then
+            echo "status=tests failed" >> $GITHUB_OUTPUT
+          else
+            echo "status=tests succeeded" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -142,6 +163,12 @@ jobs:
           echo "" >> ${{ env.LOG_FILE }}
           echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
           echo "" >> ${{ env.LOG_FILE }}     
+          echo "${{ needs.build.outputs.build_status }}" >> ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}
+          echo "${{ needs.test.outputs.container_status }}" >> ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}
+          echo "${{ needs.test.outputs.test_status }}" >> ${{ env.LOG_FILE }}
+          echo "" >> ${{ env.LOG_FILE }}
 
       - name: Upload log file
         uses: actions/upload-artifact@v4
