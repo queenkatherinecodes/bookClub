@@ -160,15 +160,10 @@ jobs:
       - name: Create log file
         run: |
           echo "$(date -Iminutes)" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}
-          echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}     
+          echo "${{ env.SUBMITTERS }}" >> ${{ env.LOG_FILE }}  
           echo "${{ needs.build.outputs.build_status }}" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}
           echo "${{ needs.test.outputs.container_status }}" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}
           echo "${{ needs.test.outputs.test_status }}" >> ${{ env.LOG_FILE }}
-          echo "" >> ${{ env.LOG_FILE }}
 
       - name: Upload log file
         uses: actions/upload-artifact@v4
