@@ -92,7 +92,7 @@ jobs:
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: Test Results
           path: assn3_test_results.txt
 
       - name: Shutdown services
@@ -152,7 +152,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: response
+          name: Response
           path: response.txt
       - name: Stop Docker Compose
         if: always()
@@ -174,5 +174,5 @@ jobs:
       - name: Upload log file
         uses: actions/upload-artifact@v4
         with:
-          name: log
+          name: Log
           path: ${{ env.LOG_FILE }}
