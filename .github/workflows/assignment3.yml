@@ -26,7 +26,7 @@ jobs:
 
       - name: Build and run services
         run: |
-          docker-compose up -d
+          docker compose up -d
 
       - name: Wait for containers to be ready
         run: sleep 10
@@ -57,7 +57,7 @@ jobs:
 
       - name: Build and run services
         run: |
-          docker-compose up -d
+          docker compose up -d
 
       - name: Wait for containers to be ready
         run: sleep 10
@@ -97,7 +97,7 @@ jobs:
 
       - name: Shutdown services
         run: |
-          docker-compose down
+          docker compose down
 
   query:
     needs: test
